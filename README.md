@@ -104,4 +104,4 @@ data loss.
 
 ---
 
-*Day 1 of the Phantom Security toolkit. Next up: PhantomHash.*
+
