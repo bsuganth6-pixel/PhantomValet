@@ -1,0 +1,139 @@
+{% extends "base.html" %}
+{% block title %}Vault — PhantomVault{% endblock %}
+{% block content %}
+
+<div class="dash-shell">
+  <header class="dash-header">
+    <div class="brand">
+      <div class="brand-mark"><i class="fa-solid fa-lock"></i></div>
+      <div class="brand-text">
+        <span class="brand-name">PHANTOM<span class="accent">VAULT</span></span>
+        <span class="brand-sub" id="idleCountdown">SESSION ACTIVE</span>
+      </div>
+    </div>
+    <div class="dash-actions">
+      <button class="btn btn-secondary btn-sm" onclick="openSettings()"><i class="fa-solid fa-gear"></i> Settings</button>
+      <button class="btn btn-secondary btn-sm" onclick="lockVault()"><i class="fa-solid fa-lock"></i> Lock Vault</button>
+    </div>
+  </header>
+
+  <div class="dash-toolbar">
+    <div class="search-box">
+      <i class="fa-solid fa-magnifying-glass"></i>
+      <input type="text" id="searchInput" placeholder="Search by site or username..." oninput="debouncedSearch()">
+    </div>
+    <button class="btn btn-primary" onclick="openEntryModal()"><i class="fa-solid fa-plus"></i> Add Entry</button>
+  </div>
+
+  <div id="entryList" class="entry-list"></div>
+  <div class="empty-state" id="emptyState" style="display:none">
+    <i class="fa-solid fa-folder-open"></i>
+    <p>No entries yet. Click <strong>Add Entry</strong> to save your first password.</p>
+  </div>
+</div>
+
+<!-- ───────── ADD/EDIT ENTRY MODAL ───────── -->
+<div class="modal-overlay" id="entryModal">
+  <div class="modal-card">
+    <div class="modal-header">
+      <h3 id="modalTitle">Add Entry</h3>
+      <button class="modal-close" onclick="closeEntryModal()"><i class="fa-solid fa-xmark"></i></button>
+    </div>
+
+    <input type="hidden" id="entryId">
+
+    <div class="field">
+      <label>Site / Service Name</label>
+      <input type="text" id="entrySite" placeholder="e.g. GitHub, Gmail, Netflix">
+    </div>
+    <div class="field">
+      <label>Username / Email</label>
+      <input type="text" id="entryUsername" placeholder="your-username">
+    </div>
+    <div class="field">
+      <label>Password</label>
+      <div class="password-input-row">
+        <input type="password" id="entryPassword" placeholder="Enter or generate a password">
+        <button class="icon-btn" onclick="toggleEntryPasswordVisibility()" title="Show/Hide"><i class="fa-solid fa-eye" id="entryPwEyeIcon"></i></button>
+        <button class="icon-btn" onclick="openGenerator()" title="Generate"><i class="fa-solid fa-dice"></i></button>
+      </div>
+      <div class="strength-meter" id="modalStrengthMeter" style="display:none">
+        <div class="strength-bar-bg"><div class="strength-bar-fill" id="modalStrengthFill"></div></div>
+        <span class="strength-label" id="modalStrengthLabel"></span>
+      </div>
+    </div>
+    <div class="field">
+      <label>Notes (optional)</label>
+      <textarea id="entryNotes" rows="3" placeholder="Recovery codes, security questions, etc."></textarea>
+    </div>
+
+    <div class="modal-actions">
+      <button class="btn btn-secondary" onclick="closeEntryModal()">Cancel</button>
+      <button class="btn btn-primary" id="saveEntryBtn" onclick="saveEntry()"><i class="fa-solid fa-floppy-disk"></i> Save Entry</button>
+    </div>
+  </div>
+</div>
+
+<!-- ───────── PASSWORD GENERATOR MODAL ───────── -->
+<div class="modal-overlay" id="generatorModal">
+  <div class="modal-card">
+    <div class="modal-header">
+      <h3>Generate Password</h3>
+      <button class="modal-close" onclick="closeGenerator()"><i class="fa-solid fa-xmark"></i></button>
+    </div>
+
+    <div class="generated-display" id="generatedDisplay">Click Generate ↓</div>
+    <div class="strength-meter" id="genStrengthMeter">
+      <div class="strength-bar-bg"><div class="strength-bar-fill" id="genStrengthFill"></div></div>
+      <span class="strength-label" id="genStrengthLabel"></span>
+    </div>
+
+    <div class="field">
+      <label>Length: <span id="lengthVal">20</span></label>
+      <input type="range" id="genLength" min="8" max="64" value="20" oninput="document.getElementById('lengthVal').textContent=this.value">
+    </div>
+
+    <div class="gen-options">
+      <label class="checkbox-row"><input type="checkbox" id="genUpper" checked> Uppercase (A-Z)</label>
+      <label class="checkbox-row"><input type="checkbox" id="genLower" checked> Lowercase (a-z)</label>
+      <label class="checkbox-row"><input type="checkbox" id="genDigits" checked> Digits (0-9)</label>
+      <label class="checkbox-row"><input type="checkbox" id="genSymbols" checked> Symbols (!@#$...)</label>
+      <label class="checkbox-row"><input type="checkbox" id="genAmbiguous" checked> Avoid ambiguous (I, l, 1, O, 0)</label>
+    </div>
+
+    <div class="modal-actions">
+      <button class="btn btn-secondary" onclick="generatePassword()"><i class="fa-solid fa-rotate"></i> Generate</button>
+      <button class="btn btn-primary" onclick="useGeneratedPassword()"><i class="fa-solid fa-check"></i> Use This Password</button>
+    </div>
+  </div>
+</div>
+
+<!-- ───────── SETTINGS MODAL ───────── -->
+<div class="modal-overlay" id="settingsModal">
+  <div class="modal-card">
+    <div class="modal-header">
+      <h3>Settings</h3>
+      <button class="modal-close" onclick="closeSettings()"><i class="fa-solid fa-xmark"></i></button>
+    </div>
+
+    <h4 class="settings-subtitle">Change Master Password</h4>
+    <div class="field">
+      <label>New Master Password</label>
+      <input type="password" id="newMasterPassword" placeholder="At least 8 characters">
+    </div>
+    <div class="field">
+      <label>Confirm New Master Password</label>
+      <input type="password" id="confirmMasterPassword" placeholder="Re-enter password">
+    </div>
+    <div class="error-box" id="settingsError" style="display:none"></div>
+    <button class="btn btn-primary btn-full" onclick="changeMasterPassword()">
+      <i class="fa-solid fa-key"></i> Update Master Password
+    </button>
+  </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/dashboard.js') }}"></script>
+{% endblock %}

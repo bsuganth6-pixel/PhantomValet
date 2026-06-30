@@ -1,0 +1,17 @@
+# ⚠️ CRITICAL: never commit your actual encrypted vault to a public repo.
+# Even though it's AES-256-GCM encrypted, treat it as sensitive — don't
+# give attackers a copy to brute-force offline at their leisure.
+vault_data/vault.dat
+vault_data/*.tmp
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+
+# Env
+.env
+
+# OS
+.DS_Store

@@ -1,0 +1,2 @@
+# This file exists only so the vault_data/ folder is tracked by git.
+# Your actual vault.dat file is excluded via .gitignore — it never gets committed.

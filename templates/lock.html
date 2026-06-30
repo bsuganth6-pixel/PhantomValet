@@ -1,0 +1,164 @@
+{% extends "base.html" %}
+{% block title %}{{ 'Unlock' if vault_exists else 'Create' }} Vault — PhantomVault{% endblock %}
+{% block content %}
+
+<div class="lock-screen">
+  <div class="lock-card">
+    <div class="lock-brand">
+      <div class="brand-mark"><i class="fa-solid fa-lock"></i></div>
+      <div class="brand-text">
+        <span class="brand-name">PHANTOM<span class="accent">VAULT</span></span>
+        <span class="brand-sub">AES-256-GCM ENCRYPTED PASSWORD MANAGER</span>
+      </div>
+    </div>
+
+    {% if vault_exists %}
+    <!-- ───────── UNLOCK FORM ───────── -->
+    <div id="unlockForm">
+      <h2 class="lock-title">Unlock Your Vault</h2>
+      <p class="lock-sub">Enter your master password to continue.</p>
+
+      <div class="field">
+        <label>Master Password</label>
+        <input type="password" id="masterPassword" placeholder="••••••••••••" autofocus
+               onkeydown="if(event.key==='Enter') doUnlock()">
+      </div>
+
+      <div class="error-box" id="errorBox" style="display:none"></div>
+
+      <button class="btn btn-primary btn-full" id="unlockBtn" onclick="doUnlock()">
+        <i class="fa-solid fa-unlock"></i> Unlock Vault
+      </button>
+      <div class="loader" id="loader"><div class="spinner"></div> Decrypting...</div>
+    </div>
+
+    {% else %}
+    <!-- ───────── CREATE FORM ───────── -->
+    <div id="createForm">
+      <h2 class="lock-title">Create Your Vault</h2>
+      <p class="lock-sub">Choose a strong master password. <strong>There is no recovery</strong> —
+        if you forget it, your vault cannot be decrypted by anyone, including you.</p>
+
+      <div class="field">
+        <label>Master Password</label>
+        <input type="password" id="newPassword" placeholder="At least 8 characters" autofocus
+               oninput="updateStrength()">
+      </div>
+
+      <div class="strength-meter" id="strengthMeter" style="display:none">
+        <div class="strength-bar-bg"><div class="strength-bar-fill" id="strengthFill"></div></div>
+        <span class="strength-label" id="strengthLabel"></span>
+      </div>
+
+      <div class="field">
+        <label>Confirm Master Password</label>
+        <input type="password" id="confirmPassword" placeholder="Re-enter password"
+               onkeydown="if(event.key==='Enter') doCreate()">
+      </div>
+
+      <div class="error-box" id="errorBox" style="display:none"></div>
+
+      <button class="btn btn-primary btn-full" id="createBtn" onclick="doCreate()">
+        <i class="fa-solid fa-shield-halved"></i> Create Vault
+      </button>
+      <div class="loader" id="loader"><div class="spinner"></div> Encrypting vault...</div>
+    </div>
+    {% endif %}
+
+    <div class="lock-footer">
+      <i class="fa-solid fa-circle-info"></i> Your vault file lives only on this machine, in
+      <span class="mono">vault_data/vault.dat</span>. Nothing is ever sent over the network.
+    </div>
+  </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+function showError(msg) {
+  const box = document.getElementById("errorBox");
+  box.textContent = msg;
+  box.style.display = "block";
+}
+function hideError() {
+  document.getElementById("errorBox").style.display = "none";
+}
+
+async function doUnlock() {
+  hideError();
+  const password = document.getElementById("masterPassword").value;
+  if (!password) { showError("Enter your master password."); return; }
+
+  const btn = document.getElementById("unlockBtn");
+  const loader = document.getElementById("loader");
+  PS.setLoading(loader, btn, true);
+
+  const result = await PS.postJSON("/api/vault/unlock", { master_password: password });
+
+  PS.setLoading(loader, btn, false);
+  if (result.error) {
+    showError(result.error);
+    document.getElementById("masterPassword").value = "";
+    document.getElementById("masterPassword").focus();
+  } else {
+    window.location.href = "/";
+  }
+}
+
+function updateStrength() {
+  const pw = document.getElementById("newPassword").value;
+  const meter = document.getElementById("strengthMeter");
+  if (!pw) { meter.style.display = "none"; return; }
+  meter.style.display = "block";
+
+  // quick client-side estimate while typing (server re-validates on submit anyway)
+  let pool = 0;
+  if (/[a-z]/.test(pw)) pool += 26;
+  if (/[A-Z]/.test(pw)) pool += 26;
+  if (/[0-9]/.test(pw)) pool += 10;
+  if (/[^a-zA-Z0-9]/.test(pw)) pool += 32;
+  const entropy = pw.length * Math.log2(Math.max(pool, 1));
+  const score = Math.max(0, Math.min(100, Math.round(entropy)));
+
+  const fill = document.getElementById("strengthFill");
+  const label = document.getElementById("strengthLabel");
+  fill.style.width = score + "%";
+
+  let color, text;
+  if (score >= 80) { color = "#00FF88"; text = "VERY STRONG"; }
+  else if (score >= 60) { color = "#00F5FF"; text = "STRONG"; }
+  else if (score >= 40) { color = "#FFD23F"; text = "MODERATE"; }
+  else if (score >= 20) { color = "#FF9F1C"; text = "WEAK"; }
+  else { color = "#FF3B5C"; text = "VERY WEAK"; }
+
+  fill.style.background = color;
+  label.textContent = text;
+  label.style.color = color;
+}
+
+async function doCreate() {
+  hideError();
+  const password = document.getElementById("newPassword").value;
+  const confirm = document.getElementById("confirmPassword").value;
+
+  if (password.length < 8) { showError("Master password must be at least 8 characters."); return; }
+  if (password !== confirm) { showError("Passwords do not match."); return; }
+
+  const btn = document.getElementById("createBtn");
+  const loader = document.getElementById("loader");
+  PS.setLoading(loader, btn, true);
+
+  const result = await PS.postJSON("/api/vault/create", {
+    master_password: password, confirm_password: confirm,
+  });
+
+  PS.setLoading(loader, btn, false);
+  if (result.error) {
+    showError(result.error);
+  } else {
+    window.location.href = "/";
+  }
+}
+</script>
+{% endblock %}
